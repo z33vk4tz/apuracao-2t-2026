@@ -41,6 +41,16 @@ npm run dev                         # http://localhost:8080
 
 Requer Node 20+. Antes do início da apuração o coletor não gera nada e o painel mostra "Aguardando…".
 
+## Servidor próprio (atualização a cada 30 s)
+
+O GitHub Pages só atualiza a cada ~5 min. Num servidor com domínio próprio, o coletor roda em loop e o Caddy serve o site com HTTPS automático:
+
+```bash
+DOMINIO=apuracao.exemplo.com.br docker compose -f deploy/docker-compose.yml up -d
+```
+
+Aponte o DNS (registro A) do domínio para o IP do servidor. Sem Docker: `npm run collect -- --loop 30` + qualquer servidor estático apontando para `web/`.
+
 ## Ideias para contribuir
 
 - Atualização ao vivo de Brasil/UFs direto do navegador (o TSE responde com CORS e `cache-control: max-age=30`), deixando só os municípios no snapshot.

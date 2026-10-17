@@ -92,7 +92,15 @@ async function coletar() {
   // municípios: chave = código IBGE (7 dígitos); arquivo do TSE usa o código TSE (5 dígitos)
   const munis = estados.flatMap((a) => a.mu.map((m) => ({ uf: a.cd, tse: m.cd, ibge: m.cdi })));
   const municipios = {};
-  await pool(munis, async (m) => {
+  // municípios já 100% apurados na coleta anterior não mudam mais: reaproveita (ciclos seguintes ficam bem mais rápidos)
+  const anterior = await readFile(OUT, "utf8").then(JSON.parse, () => null);
+  const prev = anterior?.eleicao === ELEICAO ? anterior.municipios : {};
+  const pendentes = munis.filter((m) => {
+    const p = prev[m.ibge];
+    if (p && p[3] > 0 && p[4] === p[3]) return (municipios[m.ibge] = p), false;
+    return true;
+  });
+  await pool(pendentes, async (m) => {
     const r = resumir(await getJson(`${dados}/${m.uf}/${m.uf}${m.tse}-c0001-${COD}-u.json`));
     if (r) municipios[m.ibge] = [r.lula, r.flavio, r.validos, r.secoes, r.apuradas];
   });
@@ -110,7 +118,7 @@ async function coletar() {
   await writeFile(`${OUT}.tmp`, JSON.stringify(saida));
   await rename(`${OUT}.tmp`, OUT);
   console.log(
-    `[${saida.geradoEm}] ok: ${Object.keys(ufs).length} UFs, ${Object.keys(municipios).length} municípios em ${((Date.now() - t0) / 1000).toFixed(1)}s`,
+    `[${saida.geradoEm}] ok: ${Object.keys(ufs).length} UFs, ${Object.keys(municipios).length} municípios em ${((Date.now() - t0) / 1000).toFixed(1)}s (${pendentes.length} consultados)`,
   );
 }
 
