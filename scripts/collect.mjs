@@ -1,5 +1,7 @@
 // Coleta os JSON de resultado do TSE (Brasil, UFs e municípios) e gera web/data/resultado.json.
-// Uso: node scripts/collect.mjs [--eleicao 6258] [--loop 60] [--out web/data/resultado.json]
+// Uso: node scripts/collect.mjs [--eleicao 6258] [--loop 60] [--ate <segundos>] [--out web/data/resultado.json]
+//   --post <url>  envia o resultado (POST, Bearer $UPDATE_TOKEN) quando ele muda, ex.: https://eleicoes.katz.rec.br/api/update
+//   --ate <s>     encerra o loop depois de <s> segundos (usado no GitHub Actions)
 //   6258 = Presidente, 2º turno 2026 (padrão). 6257 = 1º turno (útil para testar).
 // O TSE limita a 100 req/s por IP; aqui usamos ~80 req/s.
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -11,6 +13,9 @@ const args = Object.fromEntries(
 const ELEICAO = args.eleicao ?? "6258";
 const OUT = args.out ?? "web/data/resultado.json";
 const LOOP = Number(args.loop ?? 0);
+const POST = args.post;
+const FIM = args.ate ? Date.now() + Number(args.ate) * 1000 : Infinity;
+let ultimoEnviado = "";
 const CICLO = "ele2026";
 const BASE = `https://resultados.tse.jus.br/oficial/${CICLO}`;
 const COD = `e${ELEICAO.padStart(6, "0")}`;
@@ -72,6 +77,17 @@ async function pool(itens, fn) {
   return resultados;
 }
 
+// Só envia quando algo mudou (o KV do Cloudflare grátis aceita ~1000 gravações/dia).
+async function enviar(saida) {
+  const corpo = JSON.stringify(saida);
+  const assinatura = JSON.stringify({ ...saida, geradoEm: 0 });
+  if (assinatura === ultimoEnviado) return console.log("  sem mudanças, não enviado");
+  const res = await fetch(POST, { method: "POST", headers: { authorization: `Bearer ${process.env.UPDATE_TOKEN}` }, body: corpo });
+  if (!res.ok) throw new Error(`envio falhou: ${res.status} ${await res.text()}`);
+  ultimoEnviado = assinatura;
+  console.log("  enviado");
+}
+
 async function coletar() {
   const t0 = Date.now();
   const cfg = await getJson(`${BASE}/${ELEICAO}/config/mun-${COD}-cm.json`);
@@ -117,6 +133,7 @@ async function coletar() {
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(`${OUT}.tmp`, JSON.stringify(saida));
   await rename(`${OUT}.tmp`, OUT);
+  if (POST) await enviar(saida);
   console.log(
     `[${saida.geradoEm}] ok: ${Object.keys(ufs).length} UFs, ${Object.keys(municipios).length} municípios em ${((Date.now() - t0) / 1000).toFixed(1)}s (${pendentes.length} consultados)`,
   );
@@ -130,4 +147,4 @@ do {
     if (!LOOP) process.exitCode = 1;
   }
   if (LOOP) await sleep(LOOP * 1000);
-} while (LOOP);
+} while (LOOP && Date.now() < FIM);

@@ -1,0 +1,31 @@
+name: Coletor de apuração
+
+# Roda o coletor em loop no GitHub Actions (grátis em repositório público) e envia o resultado
+# para o Worker do Cloudflare. Agendado para a noite do 2º turno (25/10/2026) e disparável à mão.
+on:
+  schedule:
+    - cron: "0 19 25 10 *"   # 16h em Brasília
+    - cron: "50 0 26 10 *"
+  workflow_dispatch:
+    inputs:
+      eleicao:
+        description: "6258 = 2º turno (padrão); 6257 = 1º turno (teste)"
+        default: "6258"
+
+concurrency:
+  group: coletor
+  cancel-in-progress: true
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Coletar e enviar a cada 45 s
+        env:
+          UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}
+        run: node scripts/collect.mjs --eleicao "${{ inputs.eleicao || '6258' }}" --loop 45 --ate 21000 --post https://eleicoes.katz.rec.br/api/update
