@@ -1,0 +1,39 @@
+name: Atualizar painel
+
+# O GitHub não garante o intervalo do cron (pode atrasar). Para atualização a cada ~1 min
+# no dia da apuração, rode `npm run collect -- --loop 60` em um servidor e sirva a pasta web/.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Coletar dados do TSE
+        run: node scripts/collect.mjs
+        continue-on-error: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4

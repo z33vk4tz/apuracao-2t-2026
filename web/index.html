@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apuração 2º turno 2026</title>
+<meta name="description" content="Painel aberto da apuração do 2º turno da eleição presidencial 2026, com dados do TSE.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Apuração · 2º turno 2026 <small>Presidente</small></h1>
+  <div id="status" role="status">Carregando…</div>
+</header>
+
+<main>
+  <section id="placar" aria-label="Resultado parcial"></section>
+
+  <section class="mapas">
+    <figure>
+      <figcaption>Por estado</figcaption>
+      <svg id="mapa-ufs" role="img" aria-label="Mapa do Brasil por estado, colorido por quem lidera"></svg>
+    </figure>
+    <figure>
+      <figcaption>Por município <select id="filtro-uf" aria-label="Filtrar por UF"><option value="">Brasil</option></select></figcaption>
+      <svg id="mapa-municipios" role="img" aria-label="Mapa do Brasil por município, colorido por quem lidera"></svg>
+    </figure>
+  </section>
+
+  <section id="legenda" aria-label="Legenda"></section>
+  <section id="tabela-ufs" aria-label="Resultado por estado"></section>
+</main>
+
+<footer>
+  Dados: <a href="https://resultados.tse.jus.br">TSE</a> (divulgação de resultados) · Malhas: <a href="https://www.ibge.gov.br">IBGE</a> ·
+  Projeto aberto, sem vínculo com o TSE: <a href="https://github.com/z33vk4tz/apuracao-2t-2026">código no GitHub</a>.
+  Resultado oficial é o do TSE.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
