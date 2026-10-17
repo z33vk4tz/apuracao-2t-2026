@@ -4,7 +4,9 @@
   "description": "Painel aberto da apuração do 2º turno das eleições presidenciais 2026, com dados do TSE",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "geo": "node scripts/build-geo.mjs",
     "collect": "node scripts/collect.mjs",
@@ -12,6 +14,7 @@
   },
   "devDependencies": {
     "topojson-server": "3.0.1",
-    "topojson-simplify": "3.0.3"
+    "topojson-simplify": "3.0.3",
+    "wrangler": "^4.151.1"
   }
 }

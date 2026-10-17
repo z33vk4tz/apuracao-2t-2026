@@ -1,0 +1,14 @@
+{
+  "name": "apuracao-2t-2026",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./web",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/data/resultado.json"]
+  },
+  "preview_urls": false,
+  "routes": [{ "pattern": "eleicoes.katz.rec.br", "custom_domain": true }],
+  "kv_namespaces": [{ "binding": "RESULTADO", "id": "3eba2bd5d98f4c798d6f36640c5331cf" }]
+}
