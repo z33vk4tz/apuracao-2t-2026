@@ -41,15 +41,13 @@ npm run dev                         # http://localhost:8080
 
 Requer Node 20+. Antes do início da apuração o coletor não gera nada e o painel mostra "Aguardando…".
 
-## Servidor próprio (atualização a cada 30 s)
+## Hospedagem (grátis)
 
-O GitHub Pages só atualiza a cada ~5 min. Num servidor com domínio próprio, o coletor roda em loop e o Caddy serve o site com HTTPS automático:
+Tudo roda online, sem servidor pago e sem depender de nenhum computador pessoal:
 
-```bash
-DOMINIO=apuracao.exemplo.com.br docker compose -f deploy/docker-compose.yml up -d
-```
-
-Aponte o DNS (registro A) do domínio para o IP do servidor. Sem Docker: `npm run collect -- --loop 30` + qualquer servidor estático apontando para `web/`.
+- **Site + API:** um Worker do Cloudflare (`src/worker.js`, `wrangler.jsonc`) serve `web/` e guarda o último resultado num KV. Deploy: `npx wrangler deploy`.
+- **Coletor:** o workflow `.github/workflows/coletor.yml` roda em loop (a cada 45 s) no GitHub Actions e envia o JSON para `POST /api/update` com o segredo `UPDATE_TOKEN` (configure o mesmo valor no Worker e nos Secrets do repositório). Agendado para a noite de 25/10; também pode ser disparado manualmente (Actions → Run workflow).
+- Quem quiser pode rodar o coletor em qualquer máquina: `UPDATE_TOKEN=... npm run collect -- --loop 45 --post https://SEU-DOMINIO/api/update`.
 
 ## Ideias para contribuir
 
