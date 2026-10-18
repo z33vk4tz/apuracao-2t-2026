@@ -51,21 +51,33 @@ function cor(lula, flavio, validos, escala) {
 
 // --- placar --------------------------------------------------------------
 const BRASIL_VAZIO = { lula: 0, flavio: 0, validos: 0, brancos: 0, nulos: 0, secoes: 0, apuradas: 0 };
+// Título e avisos deixam claro de qual turno são os números na tela.
+function cabecalho() {
+  const ilustracao = aba === "1t";
+  $("#titulo").innerHTML = ilustracao
+    ? `1º turno 2026 <small>Presidente · resultado final de 04/10/2026</small>`
+    : `Apuração · 2º turno 2026 <small>Presidente</small>`;
+  $("#faixa").hidden = !ilustracao;
+  document.body.classList.toggle("ilustracao", ilustracao);
+  if (!ilustracao && !dados) $("#status").textContent = "O 2º turno é em 25/10/2026. Ainda não há resultado divulgado: os números aparecem aqui quando o TSE começar a apurar.";
+}
+
 function placar() {
+  cabecalho();
   const b = dados?.brasil ?? BRASIL_VAZIO;
   const pl = b.validos ? b.lula / b.validos : 0, pf = b.validos ? b.flavio / b.validos : 0;
   const lider = b.lula === b.flavio ? "" : b.lula > b.flavio ? "lula" : "flavio";
   const card = (id, nome, votos, p) => `
     <div class="cand ${id} ${lider === id ? "lider" : ""}">
       <h2>${nome}</h2>
-      <div class="pct">${pct(p)}</div>
-      <div class="votos">${fmt.format(votos)} votos</div>
+      <div class="pct">${dados ? pct(p) : "–"}</div>
+      <div class="votos">${dados ? fmt.format(votos) + " votos" : "aguardando apuração"}</div>
     </div>`;
   $("#placar").innerHTML = `
     <div class="cands">${card("lula", "Lula (PT)", b.lula, pl)}${card("flavio", "Flávio Bolsonaro (PL)", b.flavio, pf)}</div>
     <div class="barra" aria-hidden="true"><div class="l" style="width:${pl * 100}%"></div><div class="f" style="width:${pf * 100}%"></div></div>
     <div class="meta">
-      <span>Seções apuradas: <b>${b.secoes ? pct(b.apuradas / b.secoes) : "0,00%"}</b> (${fmt.format(b.apuradas)} de ${fmt.format(b.secoes)})</span>
+      <span>Seções apuradas: <b>${b.secoes ? pct(b.apuradas / b.secoes) : "–"}</b>${b.secoes ? ` (${fmt.format(b.apuradas)} de ${fmt.format(b.secoes)})` : ""}</span>
       <span>Votos válidos: <b>${fmt.format(b.validos)}</b></span>
       <span>Brancos: <b>${fmt.format(b.brancos)}</b></span>
       <span>Nulos: <b>${fmt.format(b.nulos)}</b></span>
@@ -142,7 +154,7 @@ function legenda() {
 }
 
 function tabela() {
-  if (!dados) return;
+  if (!dados) { $("#tabela-ufs").innerHTML = ""; return; }
   const linhas = Object.entries(dados.ufs)
     .filter(([uf]) => NOMES_UF[uf])
     .sort((a, b) => NOMES_UF[a[0]].localeCompare(NOMES_UF[b[0]], "pt-BR"))
