@@ -12,6 +12,8 @@ h1 { margin: 0; font-size: 1.4rem; } h1 small { color: var(--muted); font-weight
 #abas { display: flex; gap: 6px; margin: 10px 0 6px; }
 #abas button { font: inherit; font-size: .9rem; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--fg); cursor: pointer; }
 #abas button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+#faixa { background: #b45309; color: #fff; font-weight: 600; padding: 8px 12px; border-radius: 6px; margin: 6px 0; }
+body.ilustracao .mapas, body.ilustracao #placar, body.ilustracao #tabela-ufs { outline: 2px dashed #b45309; outline-offset: 4px; }
 #status { color: var(--muted); font-size: .9rem; }
 footer { color: var(--muted); font-size: .8rem; }
 a { color: inherit; }
