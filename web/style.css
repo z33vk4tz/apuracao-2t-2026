@@ -26,6 +26,7 @@ a { color: inherit; }
 .meta { display: flex; flex-wrap: wrap; gap: 4px 24px; color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
 .meta b { color: var(--fg); }
 
+.opcoes { margin: 0 0 8px; font-size: .9rem; color: var(--muted); }
 .mapas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 figcaption { font-weight: 600; padding: 4px 8px; display: flex; justify-content: space-between; gap: 8px; }
