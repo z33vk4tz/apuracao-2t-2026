@@ -21,21 +21,37 @@ const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 let dados = null;
 let geo = {};
 let ufSelecionada = "";
+let modo = "margem"; // margem | lider | lula | flavio
+const MODOS = {
+  margem: "Tons por margem (vermelho/azul)",
+  lider: "Cor única por líder (vermelho/azul)",
+  lula: "Só Lula: tons de vermelho pelo % de votos",
+  flavio: "Só Flávio: tons de azul pelo % de votos",
+};
 
 // --- cores ---------------------------------------------------------------
 function cor(lula, flavio, validos, escala) {
   if (!validos || lula + flavio === 0) return css("--vazio");
+  const vazio = css("--vazio");
+  if (modo === "lider") return lula === flavio ? vazio : lula > flavio ? css("--lula") : css("--flavio");
+  if (modo === "lula" || modo === "flavio") {
+    // um tom só: quanto maior o % do candidato entre os válidos, mais forte (20% -> claro, 80% -> cheio)
+    const p = (modo === "lula" ? lula : flavio) / validos;
+    const t = Math.max(0, Math.min((p - 0.2) / 0.6, 1));
+    return d3.interpolateRgb(vazio, css(modo === "lula" ? "--lula" : "--flavio"))(0.12 + 0.88 * t);
+  }
   const margem = (lula - flavio) / validos;
   const t = Math.min(Math.abs(margem) / escala, 1);
   const base = margem > 0 ? css("--lula") : css("--flavio");
   // do cinza-neutro à cor cheia; margens apertadas ficam quase neutras
-  return d3.interpolateRgb(css("--vazio"), base)(0.2 + 0.8 * t);
+  return d3.interpolateRgb(vazio, base)(0.2 + 0.8 * t);
 }
 
 // --- placar --------------------------------------------------------------
+const BRASIL_VAZIO = { lula: 0, flavio: 0, validos: 0, brancos: 0, nulos: 0, secoes: 0, apuradas: 0 };
 function placar() {
-  const b = dados.brasil;
-  const pl = b.lula / b.validos, pf = b.flavio / b.validos;
+  const b = dados?.brasil ?? BRASIL_VAZIO;
+  const pl = b.validos ? b.lula / b.validos : 0, pf = b.validos ? b.flavio / b.validos : 0;
   const lider = b.lula === b.flavio ? "" : b.lula > b.flavio ? "lula" : "flavio";
   const card = (id, nome, votos, p) => `
     <div class="cand ${id} ${lider === id ? "lider" : ""}">
@@ -47,12 +63,13 @@ function placar() {
     <div class="cands">${card("lula", "Lula (PT)", b.lula, pl)}${card("flavio", "Flávio Bolsonaro (PL)", b.flavio, pf)}</div>
     <div class="barra" aria-hidden="true"><div class="l" style="width:${pl * 100}%"></div><div class="f" style="width:${pf * 100}%"></div></div>
     <div class="meta">
-      <span>Seções apuradas: <b>${pct(b.apuradas / b.secoes)}</b> (${fmt.format(b.apuradas)} de ${fmt.format(b.secoes)})</span>
+      <span>Seções apuradas: <b>${b.secoes ? pct(b.apuradas / b.secoes) : "0,00%"}</b> (${fmt.format(b.apuradas)} de ${fmt.format(b.secoes)})</span>
       <span>Votos válidos: <b>${fmt.format(b.validos)}</b></span>
       <span>Brancos: <b>${fmt.format(b.brancos)}</b></span>
       <span>Nulos: <b>${fmt.format(b.nulos)}</b></span>
       <span>Diferença: <b>${fmt.format(Math.abs(b.lula - b.flavio))}</b></span>
     </div>`;
+  if (!dados) return;
   const teste = dados.eleicao !== "6258" ? "⚠ DADOS DE TESTE (1º turno) · " : "";
   $("#status").textContent = `${teste}Última atualização do TSE: ${b.atualizado} · painel atualizado ${new Date(dados.geradoEm).toLocaleTimeString("pt-BR")}`;
 }
@@ -90,7 +107,7 @@ function desenhar(svgSel, features, corDe, tipDe, w = 600, h = 640) {
 }
 
 function mapas() {
-  const ufDados = (id) => dados.ufs[UFS[id]];
+  const ufDados = (id) => dados?.ufs[UFS[id]];
   desenhar(
     "#mapa-ufs",
     geo.ufs,
@@ -101,18 +118,26 @@ function mapas() {
   desenhar(
     "#mapa-municipios",
     feats,
-    (d) => { const m = dados.municipios[d.id]; return m ? cor(m[0], m[1], m[2], MARGEM_SATURADA.municipio) : css("--vazio"); },
-    (d) => { const m = dados.municipios[d.id]; const nome = geo.nomes[d.id] ?? d.id; return m ? htmlTip(nome, m[0], m[1], m[2], m[3], m[4]) : nome; },
+    (d) => { const m = dados?.municipios[d.id]; return m ? cor(m[0], m[1], m[2], MARGEM_SATURADA.municipio) : css("--vazio"); },
+    (d) => { const m = dados?.municipios[d.id]; const nome = geo.nomes[d.id] ?? d.id; return m ? htmlTip(nome, m[0], m[1], m[2], m[3], m[4]) : nome; },
   );
 }
 
 function legenda() {
-  const g = `linear-gradient(to right, ${css("--flavio")}, ${css("--vazio")}, ${css("--lula")})`;
-  $("#legenda").innerHTML = `<span>Flávio à frente</span><span class="grad" style="background:${g}"></span><span>Lula à frente</span>
-    <span>· cinza = sem votos apurados · cor mais forte = maior margem</span>`;
+  const v = css("--vazio"), l = css("--lula"), f = css("--flavio");
+  const rampa = { margem: [f, v, l], lider: [f, f, l, l], lula: [v, l], flavio: [v, f] }[modo];
+  const [esq, dir] = {
+    margem: ["Flávio à frente", "Lula à frente"], lider: ["Flávio à frente", "Lula à frente"],
+    lula: ["Menos votos em Lula", "Mais votos em Lula"], flavio: ["Menos votos em Flávio", "Mais votos em Flávio"],
+  }[modo];
+  const g = `linear-gradient(to right, ${rampa.join(", ")})`;
+  const nota = modo === "margem" ? "cor mais forte = maior margem" : modo === "lider" ? "uma cor por vencedor" : "cor mais forte = maior % dos válidos";
+  $("#legenda").innerHTML = `<span>${esq}</span><span class="grad" style="background:${g}"></span><span>${dir}</span>
+    <span>· cinza = sem votos apurados · ${nota}</span>`;
 }
 
 function tabela() {
+  if (!dados) return;
   const linhas = Object.entries(dados.ufs)
     .filter(([uf]) => NOMES_UF[uf])
     .sort((a, b) => NOMES_UF[a[0]].localeCompare(NOMES_UF[b[0]], "pt-BR"))
@@ -150,8 +175,16 @@ function filtroUF() {
   sel.addEventListener("change", () => { ufSelecionada = sel.value; if (dados) mapas(); });
 }
 
+function seletorModo() {
+  const sel = $("#modo-cor");
+  for (const [k, nome] of Object.entries(MODOS)) sel.append(new Option(nome, k));
+  sel.addEventListener("change", () => { modo = sel.value; mapas(); legenda(); });
+}
+
 filtroUF();
+seletorModo();
 await carregarGeo();
+placar(); mapas(); legenda(); // estado inicial (sem dados): totais zerados e mapas cinza
 await atualizar();
 setInterval(atualizar, REFRESH_MS);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => dados && (mapas(), legenda()));
