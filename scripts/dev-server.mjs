@@ -9,8 +9,9 @@ createServer(async (req, res) => {
   const p = normalize(decodeURIComponent(new URL(req.url, "http://x").pathname)).replace(/^(\.\.[/\\])+/, "");
   try {
     const arq = join(raiz, p.endsWith("/") ? p + "index.html" : p);
+    const corpo = await readFile(arq);
     res.writeHead(200, { "content-type": TIPOS[extname(arq)] ?? "application/octet-stream", "cache-control": "no-store" });
-    res.end(await readFile(arq));
+    res.end(corpo);
   } catch {
     res.writeHead(404).end("não encontrado");
   }
