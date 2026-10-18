@@ -19,6 +19,8 @@ const pct = (x, d = 2) => (isFinite(x) ? (x * 100).toFixed(d).replace(".", ",") 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
 let dados = null;
+let aba = "vivo"; // vivo = 2º turno (atualiza sozinho); 1t = 1º turno, snapshot final de ilustração
+const cache = {};
 let geo = {};
 let ufSelecionada = "";
 let modo = "margem"; // margem | lider | lula | flavio
@@ -70,8 +72,11 @@ function placar() {
       <span>Diferença: <b>${fmt.format(Math.abs(b.lula - b.flavio))}</b></span>
     </div>`;
   if (!dados) return;
-  const teste = dados.eleicao !== "6258" ? "⚠ DADOS DE TESTE (1º turno) · " : "";
-  $("#status").textContent = `${teste}Última atualização do TSE: ${b.atualizado} · painel atualizado ${new Date(dados.geradoEm).toLocaleTimeString("pt-BR")}`;
+  if (dados.eleicao === "6257") {
+    $("#status").textContent = "Ilustração: resultado final do 1º turno (04/10/2026). Percentuais sobre todos os votos válidos, incluindo os demais candidatos.";
+    return;
+  }
+  $("#status").textContent = `Última atualização do TSE: ${b.atualizado} · painel atualizado ${new Date(dados.geradoEm).toLocaleTimeString("pt-BR")}`;
 }
 
 // --- mapas ---------------------------------------------------------------
@@ -157,15 +162,29 @@ async function carregarGeo() {
 }
 
 async function atualizar() {
+  const minha = aba;
   try {
-    const r = await fetch(`data/resultado.json?t=${Date.now()}`, { cache: "no-store" });
+    const url = minha === "1t" ? "data/resultado-1t.json" : `data/resultado.json?t=${Date.now()}`;
+    const r = await fetch(url, { cache: minha === "1t" ? "default" : "no-store" });
     if (!r.ok) throw new Error(r.status);
-    dados = await r.json();
+    cache[minha] = await r.json();
   } catch {
-    if (!dados) $("#status").textContent = "Aguardando o início da apuração…";
-    return;
+    if (!cache[minha] && minha === aba) $("#status").textContent = "Aguardando o início da apuração…";
   }
+  if (minha !== aba) return; // usuário trocou de aba durante a carga
+  dados = cache[minha] ?? null;
   placar(); mapas(); legenda(); tabela();
+}
+
+function abas() {
+  const botoes = document.querySelectorAll("#abas button");
+  botoes.forEach((b) => b.addEventListener("click", () => {
+    aba = b.dataset.aba;
+    botoes.forEach((x) => x.setAttribute("aria-selected", x === b));
+    dados = cache[aba] ?? null;
+    placar(); mapas(); legenda(); tabela();
+    atualizar();
+  }));
 }
 
 function filtroUF() {
@@ -181,10 +200,11 @@ function seletorModo() {
   sel.addEventListener("change", () => { modo = sel.value; mapas(); legenda(); });
 }
 
+abas();
 filtroUF();
 seletorModo();
 await carregarGeo();
 placar(); mapas(); legenda(); // estado inicial (sem dados): totais zerados e mapas cinza
 await atualizar();
-setInterval(atualizar, REFRESH_MS);
+setInterval(() => aba === "vivo" && atualizar(), REFRESH_MS);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => dados && (mapas(), legenda()));
