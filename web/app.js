@@ -11,6 +11,9 @@ const NOMES_UF = {
   RS: "Rio Grande do Sul", RO: "Rondônia", RR: "Roraima", SC: "Santa Catarina", SP: "São Paulo", SE: "Sergipe", TO: "Tocantins",
 };
 const REFRESH_MS = 30_000;
+const MUNICIPIOS_MS = 60_000; // snapshot dos municípios (via coletor) é consultado com menos frequência
+// Brasil e UFs vêm direto do TSE (o servidor deles aceita CORS e renova a cada ~30 s); só os municípios passam pelo coletor.
+const TSE = "https://resultados.tse.jus.br/oficial/ele2026/6258/dados";
 const MARGEM_SATURADA = { uf: 0.3, municipio: 0.5 }; // margem (em fração dos válidos) em que a cor chega ao máximo
 
 const $ = (s) => document.querySelector(s);
@@ -88,7 +91,8 @@ function placar() {
     $("#status").textContent = "Ilustração: resultado final do 1º turno (04/10/2026). Percentuais sobre todos os votos válidos, incluindo os demais candidatos.";
     return;
   }
-  $("#status").textContent = `Última atualização do TSE: ${b.atualizado} · painel atualizado ${new Date(dados.geradoEm).toLocaleTimeString("pt-BR")}`;
+  const mun = dados.municipiosEm ? ` · mapa de municípios: ${new Date(dados.municipiosEm).toLocaleTimeString("pt-BR")} (atualiza a cada ~2 min)` : "";
+  $("#status").textContent = `Última atualização do TSE: ${b.atualizado} · painel atualizado ${new Date(dados.geradoEm).toLocaleTimeString("pt-BR")}${mun}`;
 }
 
 // --- mapas ---------------------------------------------------------------
@@ -173,15 +177,64 @@ async function carregarGeo() {
   geo.municipios = topojson.feature(m, m.objects.municipios).features;
 }
 
+const num = (x) => Number(String(x ?? "0").replace(",", "."));
+// Mesmo resumo que scripts/collect.mjs faz de um arquivo -u.json do TSE.
+function resumirTSE(d) {
+  const votos = {};
+  for (const agr of d.carg?.[0]?.agr ?? [])
+    for (const par of agr.par ?? [])
+      for (const c of par.cand ?? []) votos[c.n] = num(c.vap);
+  return {
+    lula: votos[13] ?? 0, flavio: votos[22] ?? 0, validos: num(d.v?.vv), brancos: num(d.v?.vb), nulos: num(d.v?.tvn),
+    secoes: num(d.s?.ts), apuradas: num(d.s?.st), atualizado: `${d.dg} ${d.hg}`,
+  };
+}
+async function tseJson(arq) {
+  try {
+    const r = await fetch(`${TSE}/${arq}`);
+    return r.ok ? resumirTSE(await r.json()) : null;
+  } catch { return null; }
+}
+// Brasil + 27 UFs direto do TSE (28 arquivos pequenos).
+async function carregarDireto() {
+  const siglas = Object.values(UFS);
+  const [br, ...ufs] = await Promise.all([
+    tseJson("br/br-c0001-e006258-u.json"),
+    ...siglas.map((uf) => tseJson(`${uf.toLowerCase()}/${uf.toLowerCase()}-c0001-e006258-u.json`)),
+  ]);
+  if (!br) return null;
+  return { brasil: br, ufs: Object.fromEntries(siglas.map((uf, i) => [uf, ufs[i]]).filter(([, v]) => v)) };
+}
+
+let municipiosEm = 0;
 async function atualizar() {
   const minha = aba;
-  try {
-    const url = minha === "1t" ? "data/resultado-1t.json" : `data/resultado.json?t=${Date.now()}`;
-    const r = await fetch(url, { cache: minha === "1t" ? "default" : "no-store" });
-    if (!r.ok) throw new Error(r.status);
-    cache[minha] = await r.json();
-  } catch {
-    if (!cache[minha] && minha === aba) $("#status").textContent = "Aguardando o início da apuração…";
+  if (minha === "1t") {
+    try {
+      const r = await fetch("data/resultado-1t.json");
+      if (!r.ok) throw new Error(r.status);
+      cache["1t"] = await r.json();
+    } catch {
+      if (!cache["1t"] && minha === aba) $("#status").textContent = "Aguardando o início da apuração…";
+    }
+  } else {
+    const agora = Date.now();
+    const [direto, snap] = await Promise.all([
+      carregarDireto(),
+      agora - municipiosEm > MUNICIPIOS_MS - 1000
+        ? fetch(`data/resultado.json?t=${agora}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        : null,
+    ]);
+    if (snap) { cache.snap = snap; municipiosEm = agora; }
+    const base = cache.snap;
+    if (direto) {
+      // Brasil e UFs frescos do TSE; municípios do último snapshot do coletor
+      cache.vivo = { ...(base ?? { municipios: {} }), eleicao: "6258", brasil: direto.brasil, ufs: { ...(base?.ufs ?? {}), ...direto.ufs }, geradoEm: new Date(agora).toISOString(), municipiosEm: base?.geradoEm };
+    } else if (base) {
+      cache.vivo = base; // TSE direto indisponível: usa o que o coletor enviou
+    } else if (!cache.vivo && minha === aba) {
+      $("#status").textContent = "Aguardando o início da apuração…";
+    }
   }
   if (minha !== aba) return; // usuário trocou de aba durante a carga
   dados = cache[minha] ?? null;

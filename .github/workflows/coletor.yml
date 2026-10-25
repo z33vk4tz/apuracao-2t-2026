@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Coletar e enviar a cada 45 s
+      - name: Coletar e enviar em ciclos contínuos
         env:
           UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}
-        run: node scripts/collect.mjs --eleicao "${{ inputs.eleicao || '6258' }}" --loop 45 --ate 21000 --post https://eleicoes.katz.rec.br/api/update
+        run: node scripts/collect.mjs --eleicao "${{ inputs.eleicao || '6258' }}" --loop 5 --ate 21000 --post https://eleicoes.katz.rec.br/api/update

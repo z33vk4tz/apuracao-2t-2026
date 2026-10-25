@@ -46,8 +46,8 @@ Requer Node 20+. Antes do início da apuração o coletor não gera nada e o pai
 Tudo roda online, sem servidor pago e sem depender de nenhum computador pessoal:
 
 - **Site + API:** um Worker do Cloudflare (`src/worker.js`, `wrangler.jsonc`) serve `web/` e guarda o último resultado num KV. Deploy: `npx wrangler deploy`.
-- **Coletor:** o workflow `.github/workflows/coletor.yml` roda em loop (a cada 45 s) no GitHub Actions e envia o JSON para `POST /api/update` com o segredo `UPDATE_TOKEN` (configure o mesmo valor no Worker e nos Secrets do repositório). Agendado para a noite de 25/10; também pode ser disparado manualmente (Actions → Run workflow).
-- Quem quiser pode rodar o coletor em qualquer máquina: `UPDATE_TOKEN=... npm run collect -- --loop 45 --post https://SEU-DOMINIO/api/update`.
+- **Coletor:** o workflow `.github/workflows/coletor.yml` roda em loop (em ciclos contínuos) no GitHub Actions e envia o JSON para `POST /api/update` com o segredo `UPDATE_TOKEN` (configure o mesmo valor no Worker e nos Secrets do repositório). Agendado para a noite de 25/10; também pode ser disparado manualmente (Actions → Run workflow).
+- Quem quiser pode rodar o coletor em qualquer máquina: `UPDATE_TOKEN=... npm run collect -- --loop 5 --post https://SEU-DOMINIO/api/update`.
 
 ## Ideias para contribuir
 
