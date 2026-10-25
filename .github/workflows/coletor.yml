@@ -4,8 +4,8 @@ name: Coletor de apuração
 # para o Worker do Cloudflare. Agendado para a noite do 2º turno (25/10/2026) e disparável à mão.
 on:
   schedule:
-    - cron: "0 19 25 10 *"   # 16h em Brasília
-    - cron: "50 0 26 10 *"
+    - cron: "55 21 25 10 *"  # 18h55 em Brasília (apuração retomada às 19h)
+    - cron: "50 3 26 10 *"   # 00h50 em Brasília
   workflow_dispatch:
     inputs:
       eleicao:
